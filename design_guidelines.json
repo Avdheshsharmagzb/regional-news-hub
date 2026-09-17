@@ -1,0 +1,139 @@
+{
+  "project_name": "Ghaziabad Times",
+  "app_type": "hybrid_fullstack (Hindi News Portal + AI Content Admin Dashboard)",
+  "design_philosophy": {
+    "identity": "The premier digital Hindi news publication for Ghaziabad, Delhi-NCR, Uttar Pradesh, and India. Modern editorial aesthetics meets high-velocity journalism with crystal-clear Devanagari typography.",
+    "archetype": "Swiss Editorial & High-Urgency Media",
+    "theme_mode": "Light mode default (#F9F9F9) with smooth toggle to Dark mode (#121212)"
+  },
+  "colors": {
+    "brand_primary": {
+      "hex": "#B71C1C",
+      "name": "Breaking News Crimson",
+      "usage": "Top masthead bar, live breaking news tickers, urgent tags, main action CTA buttons, active state indicators"
+    },
+    "brand_secondary": {
+      "hex": "#1A1A1A",
+      "name": "Charcoal Slate",
+      "usage": "Primary headlines, long-form Hindi body text in light mode, high contrast structural borders"
+    },
+    "accent_gold": {
+      "hex": "#D4AC0D",
+      "name": "Warm Amber Gold",
+      "usage": "Category pill badges (e.g., राजनीति, अपराध, खेल, धर्म), featured story borders, special coverage highlights, star ratings"
+    },
+    "light_mode": {
+      "background": "#F9F9F9",
+      "surface": "#FFFFFF",
+      "surface_elevated": "#FFFFFF",
+      "card_border": "#E5E7EB",
+      "text_primary": "#1A1A1A",
+      "text_secondary": "#4B5563",
+      "text_muted": "#6B7280"
+    },
+    "dark_mode": {
+      "background": "#121212",
+      "surface": "#1E1E1E",
+      "surface_elevated": "#282828",
+      "card_border": "#333333",
+      "text_primary": "#F3F4F6",
+      "text_secondary": "#D1D5DB",
+      "text_muted": "#9CA3AF"
+    },
+    "status_colors": {
+      "approved": "#15803D",
+      "pending_approval": "#B45309",
+      "rejected": "#DC2626",
+      "ai_rewritten_badge": "#7C3AED"
+    }
+  },
+  "typography": {
+    "font_families": {
+      "hindi_heading": "'Rozha One', 'Noto Sans Devanagari', serif",
+      "hindi_body": "'Hind', 'Noto Sans Devanagari', sans-serif",
+      "english_branding": "'Outfit', 'Poppins', sans-serif",
+      "mono_numbers": "'JetBrains Mono', monospace"
+    },
+    "font_sources": [
+      "https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Outfit:wght@600;700;800;900&family=Rozha+One&display=swap"
+    ],
+    "line_height_rules": {
+      "hindi_body": "1.7 to 1.8 (CRITICAL: Devanagari vowel matras above and below baseline require extra vertical breathing room to prevent line clashing)",
+      "hindi_headings": "1.3 to 1.4",
+      "english_headings": "1.1 to 1.2"
+    },
+    "hierarchy": {
+      "h1_hero": "text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight tracking-normal",
+      "h2_section": "text-2xl sm:text-3xl font-bold border-l-4 border-[#B71C1C] pl-3 leading-snug",
+      "h3_card": "text-lg sm:text-xl font-semibold hover:text-[#B71C1C] transition-colors leading-relaxed",
+      "body_article": "text-base sm:text-lg leading-[1.8] font-normal text-foreground",
+      "eyebrow_label": "text-xs font-bold uppercase tracking-widest text-[#D4AC0D]"
+    }
+  },
+  "layout_and_structure": {
+    "header_and_navigation": {
+      "top_utility_bar": "Deep Crimson (#B71C1C) background with white text displaying live Hindi Date, Weather (गाज़ियाबाद 32°C), e-Paper link, and Dark/Light Mode switch.",
+      "brand_header": "White/Dark surface showcasing bold bilingual logo ('गाज़ियाबाद टाइम्स / GHAZIABAD TIMES'), edition dropdown (गाज़ियाबाद, नोएडा, ग्रेटर नोएडा, दिल्ली, लखनऊ), search trigger, and 'विज्ञापन दें' (Advertise) CTA.",
+      "main_nav_sticky": "Sticky responsive navigation bar with glassmorphism backdrop (`backdrop-blur-md bg-white/90 dark:bg-[#121212]/90 z-40`), featuring primary categories: मुख्य समाचार (Home), ब्रेकिंग (Breaking), देश (National), राजनीति (Politics), राज्य एवं जिला (States/Districts with sub-menu for Delhi NCR, UP, Haryana, Punjab, Rajasthan, UK), खेल (Sports), जीवनशैली (Lifestyle), and AI Dashboard (Admin)."
+    },
+    "ticker_bar": {
+      "style": "Flex box with a static high-urgency 'ताज़ा ख़बर / BREAKING' tag in Crimson Red + flashing dot indicator, followed by a smooth marquee auto-scrolling live news headlines with pause-on-hover capability."
+    },
+    "grid_modes": {
+      "hero_featured_grid": "Asymmetric Bento Layout: 1 primary large hero card (spans 8 cols on desktop) with prominent image + headline + excerpt + gold tag, flanked by 4 vertical trending story cards (spans 4 cols).",
+      "district_news_tabs": "Interactive State & District filter tab strip (गाज़ियाबाद, नोएडा, हापुड़, ग्रेटर नोएडा, दिल्ली NCR, लखनऊ) with high-density grid cards.",
+      "admin_dashboard_split": "Dual-pane desktop view: Left side 40% (Pending News Aggregator Feed with source metadata and confidence score), Right side 60% (Interactive AI Rewriter workspace with side-by-side original vs rewritten comparison, image watermark generator toggle, and Publish/Reject actions)."
+    }
+  },
+  "watermarking_and_media": {
+    "watermark_overlay": "Every uploaded or approved article image MUST feature a dynamic subtle translucent brand watermark badge in the bottom-right corner reading 'गाज़ियाबाद टाइम्स © GHAZIABAD TIMES' with custom SVG logo overlay.",
+    "aspect_ratios": {
+      "hero_image": "aspect-video md:aspect-[16/9] object-cover rounded-lg overflow-hidden",
+      "thumbnail": "aspect-[4/3] object-cover rounded-md"
+    }
+  },
+  "component_guidelines": {
+    "news_card": {
+      "container": "group bg-card hover:bg-muted/40 transition-all duration-200 border border-border rounded-lg overflow-hidden flex flex-col justify-between shadow-sm hover:shadow-md",
+      "badge": "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#D4AC0D]/15 text-[#B71C1C] dark:text-[#D4AC0D] border border-[#D4AC0D]/30",
+      "timestamp": "text-xs text-muted-foreground flex items-center gap-1"
+    },
+    "admin_approval_queue": {
+      "item": "p-4 rounded-lg border border-border bg-card space-y-3",
+      "ai_rewrite_btn": "bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-all"
+    },
+    "ad_banner_slot": {
+      "style": "bg-muted/50 border border-dashed border-muted-foreground/30 p-4 rounded-lg text-center flex flex-col items-center justify-center text-xs text-muted-foreground"
+    }
+  },
+  "image_urls": {
+    "breaking_news_1": "https://images.pexels.com/photos/10464454/pexels-photo-10464454.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "breaking_news_2": "https://images.pexels.com/photos/10464476/pexels-photo-10464476.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "national_politics_1": "https://images.pexels.com/photos/5548399/pexels-photo-5548399.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "national_politics_2": "https://images.pexels.com/photos/19883685/pexels-photo-19883685.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "sports_cricket_1": "https://images.pexels.com/photos/36230651/pexels-photo-36230651.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "sports_cricket_2": "https://images.pexels.com/photos/31739439/pexels-photo-31739439.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+  },
+  "testing_attributes": {
+    "rule": "All interactive buttons, links, search inputs, mode toggles, category tabs, admin action buttons, and article titles MUST contain descriptive data-testid attributes in kebab-case.",
+    "examples": [
+      "data-testid=\"theme-toggle-button\"",
+      "data-testid=\"breaking-news-ticker\"",
+      "data-testid=\"district-tab-ghaziabad\"",
+      "data-testid=\"article-card-hero\"",
+      "data-testid=\"admin-approve-news-button\"",
+      "data-testid=\"admin-ai-rewrite-button\"",
+      "data-testid=\"advertise-submit-payment-button\""
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Load Google Fonts ('Hind', 'Noto Sans Devanagari', 'Rozha One', 'Outfit') into public/index.html or index.css.",
+    "Ensure Devanagari typography has clear font size scaling and line-height of 1.7 to prevent Hindi character overlap.",
+    "Use exact color hex values specified: Crimson #B71C1C for header/breaking tags, Gold #D4AC0D for badges, Charcoal #1A1A1A for text.",
+    "Implement automated news aggregation mock queue in Admin Dashboard with approval, AI-rewrite preview side-by-side, and image watermarking preview.",
+    "Include state & district filter views: UP (Ghaziabad, Noida, Greater Noida, Hapur, Lucknow), Delhi NCR, Haryana, Punjab, Rajasthan, UK.",
+    "Ensure full responsive behavior across laptops, tablets, and smartphones (mobile drawer menu, touch-friendly ticker, responsive grids).",
+    "Include complete legal disclaimer page, jurisdiction clause in footer, advertise page with mock UPI/Card payment modal, and active social media links.",
+    "Attach data-testid attributes to all key interactive elements."
+  ]
+}
