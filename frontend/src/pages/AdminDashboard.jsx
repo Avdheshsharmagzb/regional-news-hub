@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { api, mediaUrl, formatApiError } from "@/lib/api";
@@ -31,6 +31,9 @@ export default function AdminDashboard() {
   const [local, setLocal] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkProgress, setBulkProgress] = useState(null);
+  const bulkIvRef = useRef(null);
+
+  useEffect(() => () => { if (bulkIvRef.current) clearInterval(bulkIvRef.current); }, []);
 
   const LOCAL_FILTERS = [
     { k: "", label: "सभी" },
@@ -100,12 +103,14 @@ export default function AdminDashboard() {
   const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map((a) => a.id)));
 
   const pollBulk = () => {
+    if (bulkIvRef.current) clearInterval(bulkIvRef.current);
     const iv = setInterval(async () => {
       try {
         const { data } = await api.get("/admin/bulk-status");
         setBulkProgress(data);
         if (!data.processing) {
           clearInterval(iv);
+          bulkIvRef.current = null;
           setBulkProgress(null);
           setSelectedIds(new Set());
           load(tab, local); loadStats();
@@ -113,6 +118,7 @@ export default function AdminDashboard() {
         }
       } catch { /* ignore */ }
     }, 3000);
+    bulkIvRef.current = iv;
   };
 
   const bulk = async (action) => {

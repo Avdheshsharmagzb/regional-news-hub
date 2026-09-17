@@ -32,6 +32,7 @@ Fully responsive modern Hindi News Portal with automated RSS aggregation (15+ so
 - Social media links point to platform homepages (placeholders), not connected accounts / auto-posting.
 
 ## Backlog
+- Added (2026-06): Local Amar Ujala city/state RSS feeds; admin city/state filter chips; hourly auto-aggregation scheduler (scheduler_loop) with dashboard indicator; bulk approval (select-all + per-item) with bulk publish/reject + background bulk AI-rewrite+publish and live progress (/api/admin/articles/bulk, /api/admin/bulk-status). Verified 100% (iteration_2).
 - P1: Real payment for ads (Razorpay India or user's own Stripe key).
 - P1: Social auto-publish (post news/video to YouTube/FB/Insta and reflect on site) — requires OAuth + each platform's API.
 - P2: httpOnly cookie auth + brute-force lockout; background/streaming aggregation; scheduled auto-aggregation cron.

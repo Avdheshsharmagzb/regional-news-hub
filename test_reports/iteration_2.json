@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only testing of Ghaziabad Times admin dashboard bulk-approval + hourly-scheduler feature. All 8 requested flows PASSED end-to-end against the live preview URL using the seeded admin credentials.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "detailed_results": {
+    "admin_login": "PASS — admin@ghaziabadtimes.com / GhaziabadTimes@2026 redirects to /admin.",
+    "auto_indicator": "PASS — admin-auto-indicator visible with text 'ऑटो-अपडेट: हर 60 मिनट'. /api/admin/stats returns auto_enabled=true, auto_interval_minutes=60.",
+    "bulk_bar_and_select_all": "PASS — admin-bulk-bar and admin-select-all visible on लंबित tab. Ghaziabad filter narrowed list to 4 items.",
+    "per_item_checkboxes_and_bulk_buttons": "PASS — admin-select-<id> checkboxes present; selecting reveals admin-bulk-rewrite-publish, admin-bulk-publish, admin-bulk-reject buttons.",
+    "bulk_publish": "PASS — Selected 2 Ghaziabad pending items and clicked admin-bulk-publish. Items disappeared from pending, stats moved pending 118->116 and published 18->20, both IDs present in published tab and on public /api/articles.",
+    "bulk_reject": "PASS — Selected 1 item, clicked admin-bulk-reject; article appears in rejected list.",
+    "bulk_rewrite_publish": "PASS — Selected 1 item, clicked admin-bulk-rewrite-publish. admin-bulk-progress bar appeared, bulk-status went processing:true(0/1) -> processing:false(1/1) in ~5s. Article moved to published with ai_rewritten=true and a distinct Hindi rewritten title (original preserved in original_title).",
+    "select_all_and_selection_clearing": "PASS — Select-all selects all visible filtered items; deselecting hides bulk buttons. Switching local filter (Ghaziabad -> Noida) and switching tab (लंबित -> प्रकाशित -> लंबित) both clear selectedIds (bulk buttons disappear)."
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminDashboard.jsx pollBulk() starts a new setInterval on every rewrite_publish call without an in-flight guard — if the admin quickly clicks the button twice, multiple intervals will run. Current UI disables the button while bulkProgress is set which mitigates this in practice, but consider tracking the interval ref and clearing it on unmount to avoid a memory leak if the admin navigates away mid-run.",
+    "bulk() sends is_breaking:markBreaking for all bulk actions (including reject/rewrite_publish where it is meaningless). Harmless on the backend but slightly noisy; consider only sending it for publish/rewrite_publish.",
+    "Auto indicator title tooltip uses stats.last_auto_run which was null (scheduler hasn't fired yet in this environment) — no last_auto_run timestamp shown until first tick. Not a bug, just note for E1."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only per request)", "frontend": "100%"},
+  "test_credentials": "admin@ghaziabadtimes.com / GhaziabadTimes@2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "No seed created. Consumed 3 pending Ghaziabad items during testing (2 published, 1 rewrite+published, 1 rejected). ~114 pending items remain.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All bulk actions verified live. Stats/counters, public /api/articles reflect published items. AI rewrite via Gemini works in <10s per article. Auto-scheduler is enabled with 60min interval but last_auto_run was still null at test time (scheduler_loop runs hourly).",
+  "rca of the issue": "No issues found."
+}
