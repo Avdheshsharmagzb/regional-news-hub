@@ -38,6 +38,10 @@ JWT_ALG = "HS256"
 AI_MODEL = os.environ.get('GT_AI_MODEL', 'gemini-3-flash-preview')
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
 
+LAST_AUTO_RUN = None
+AUTO_INTERVAL_SECONDS = 3600
+BULK_STATUS = {"processing": False, "done": 0, "total": 0}
+
 UPLOADS_DIR = ROOT_DIR / 'uploads'
 UPLOADS_DIR.mkdir(exist_ok=True)
 FONT_BOLD = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
@@ -104,6 +108,12 @@ class AdInquiry(BaseModel):
     company: Optional[str] = ""
     package_id: str
     message: Optional[str] = ""
+
+
+class BulkReq(BaseModel):
+    ids: List[str]
+    action: str  # publish | reject | rewrite_publish
+    is_breaking: Optional[bool] = None
 
 
 # ---------------------------------------------------------------- Auth
@@ -470,7 +480,9 @@ async def admin_stats(admin: dict = Depends(get_current_admin)):
     published = await db.articles.count_documents({"status": "published"})
     rejected = await db.articles.count_documents({"status": "rejected"})
     inquiries = await db.ad_inquiries.count_documents({})
-    return {"pending": pending, "published": published, "rejected": rejected, "inquiries": inquiries}
+    return {"pending": pending, "published": published, "rejected": rejected,
+            "inquiries": inquiries, "last_auto_run": LAST_AUTO_RUN,
+            "auto_enabled": True, "auto_interval_minutes": AUTO_INTERVAL_SECONDS // 60}
 
 
 @api_router.post("/admin/aggregate")
@@ -539,6 +551,65 @@ async def admin_publish(article_id: str, body: RewriteReq, admin: dict = Depends
 async def admin_reject(article_id: str, admin: dict = Depends(get_current_admin)):
     await db.articles.update_one({"_id": ObjectId(article_id)}, {"$set": {"status": "rejected"}})
     return {"message": "समाचार अस्वीकृत", "id": article_id}
+
+
+async def bulk_rewrite_publish(ids: List[str], is_breaking):
+    BULK_STATUS.update({"processing": True, "done": 0, "total": len(ids)})
+    for aid in ids:
+        try:
+            doc = await db.articles.find_one({"_id": ObjectId(aid)})
+            if not doc:
+                BULK_STATUS["done"] += 1
+                continue
+            try:
+                data = await ai_rewrite(doc.get("original_title") or doc["title"], doc.get("body", ""), doc.get("category", ""))
+                await db.articles.update_one({"_id": doc["_id"]}, {"$set": {
+                    "title": data.get("rewritten_title", doc["title"]),
+                    "body": data.get("rewritten_body", doc.get("body", "")),
+                    "summary": data.get("summary", doc.get("summary", ""))[:300],
+                    "ai_rewritten": True}})
+            except Exception as e:
+                logger.warning(f"bulk rewrite fail {aid}: {e}")
+            fresh = await db.articles.find_one({"_id": doc["_id"]})
+            if fresh.get("image_url") and not fresh.get("watermarked"):
+                new_url = await asyncio.to_thread(save_watermarked_from_url, fresh["image_url"])
+                if new_url:
+                    await db.articles.update_one({"_id": doc["_id"]}, {"$set": {"image_url": new_url, "watermarked": True}})
+            upd = {"status": "published", "published_at": datetime.now(timezone.utc).isoformat()}
+            if is_breaking is not None:
+                upd["is_breaking"] = is_breaking
+            await db.articles.update_one({"_id": doc["_id"]}, {"$set": upd})
+        except Exception as e:
+            logger.error(f"bulk item {aid}: {e}")
+        BULK_STATUS["done"] += 1
+    BULK_STATUS["processing"] = False
+
+
+@api_router.post("/admin/articles/bulk")
+async def admin_bulk(body: BulkReq, background_tasks: BackgroundTasks, admin: dict = Depends(get_current_admin)):
+    if not body.ids:
+        raise HTTPException(status_code=400, detail="कोई समाचार चयनित नहीं")
+    oids = [ObjectId(i) for i in body.ids]
+    if body.action == "publish":
+        upd = {"status": "published", "published_at": datetime.now(timezone.utc).isoformat()}
+        if body.is_breaking is not None:
+            upd["is_breaking"] = body.is_breaking
+        r = await db.articles.update_many({"_id": {"$in": oids}}, {"$set": upd})
+        return {"updated": r.modified_count, "message": f"{r.modified_count} समाचार प्रकाशित किए गए"}
+    if body.action == "reject":
+        r = await db.articles.update_many({"_id": {"$in": oids}}, {"$set": {"status": "rejected"}})
+        return {"updated": r.modified_count, "message": f"{r.modified_count} समाचार अस्वीकृत किए गए"}
+    if body.action == "rewrite_publish":
+        if BULK_STATUS["processing"]:
+            raise HTTPException(status_code=409, detail="पहले से एक बल्क प्रक्रिया चल रही है, कृपया प्रतीक्षा करें")
+        background_tasks.add_task(bulk_rewrite_publish, body.ids, body.is_breaking)
+        return {"message": f"{len(body.ids)} समाचार AI रीराइट व प्रकाशन हेतु प्रोसेस हो रहे हैं", "count": len(body.ids)}
+    raise HTTPException(status_code=400, detail="अमान्य क्रिया")
+
+
+@api_router.get("/admin/bulk-status")
+async def get_bulk_status(admin: dict = Depends(get_current_admin)):
+    return BULK_STATUS
 
 
 app.include_router(api_router)
@@ -621,12 +692,25 @@ async def seed():
         logger.info("seeded sample published articles")
 
 
+async def scheduler_loop():
+    global LAST_AUTO_RUN
+    while True:
+        await asyncio.sleep(AUTO_INTERVAL_SECONDS)
+        try:
+            n = await run_aggregation()
+            LAST_AUTO_RUN = datetime.now(timezone.utc).isoformat()
+            logger.info(f"[scheduler] auto-aggregation inserted {n} articles")
+        except Exception as e:
+            logger.error(f"[scheduler] auto-aggregation failed: {e}")
+
+
 @app.on_event("startup")
 async def on_startup():
     await db.articles.create_index("status")
     await db.articles.create_index("source_url")
     await db.users.create_index("email", unique=True)
     await seed()
+    asyncio.create_task(scheduler_loop())
 
 
 @app.on_event("shutdown")

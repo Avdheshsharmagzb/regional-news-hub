@@ -29,6 +29,8 @@ export default function AdminDashboard() {
   const [imgPrompt, setImgPrompt] = useState("");
   const [markBreaking, setMarkBreaking] = useState(false);
   const [local, setLocal] = useState("");
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkProgress, setBulkProgress] = useState(null);
 
   const LOCAL_FILTERS = [
     { k: "", label: "सभी" },
@@ -89,6 +91,47 @@ export default function AdminDashboard() {
     finally { setBusy(""); }
   };
 
+  const toggleSelect = (id) => setSelectedIds((prev) => {
+    const n = new Set(prev);
+    n.has(id) ? n.delete(id) : n.add(id);
+    return n;
+  });
+  const allSelected = items.length > 0 && items.every((a) => selectedIds.has(a.id));
+  const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map((a) => a.id)));
+
+  const pollBulk = () => {
+    const iv = setInterval(async () => {
+      try {
+        const { data } = await api.get("/admin/bulk-status");
+        setBulkProgress(data);
+        if (!data.processing) {
+          clearInterval(iv);
+          setBulkProgress(null);
+          setSelectedIds(new Set());
+          load(tab, local); loadStats();
+          toast.success("बल्क AI रीराइट व प्रकाशन पूर्ण");
+        }
+      } catch { /* ignore */ }
+    }, 3000);
+  };
+
+  const bulk = async (action) => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    setBusy("bulk-" + action);
+    try {
+      const { data } = await api.post("/admin/articles/bulk", { ids, action, is_breaking: markBreaking });
+      toast.success(data.message);
+      if (action === "rewrite_publish") {
+        setBulkProgress({ processing: true, done: 0, total: ids.length });
+        pollBulk();
+      } else {
+        setSelectedIds(new Set()); load(tab, local); loadStats();
+      }
+    } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
+    finally { setBusy(""); }
+  };
+
   if (authLoading || !user) return <div className="py-20 text-center text-muted-foreground">लोड हो रहा है...</div>;
 
   return (
@@ -99,6 +142,9 @@ export default function AdminDashboard() {
           <p className="text-sm text-muted-foreground">नमस्ते, {user.name} — समाचार एकत्रण, पुनर्लेखन एवं अनुमोदन</p>
         </div>
         <div className="flex items-center gap-2">
+          <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-[#15803D] bg-[#15803D]/10 border border-[#15803D]/30 px-3 py-2 rounded-lg" data-testid="admin-auto-indicator" title={stats.last_auto_run ? `अंतिम ऑटो-अपडेट: ${timeAgo(stats.last_auto_run)}` : "ऑटो-अपडेट सक्रिय"}>
+            <span className="w-2 h-2 rounded-full bg-[#15803D] blink-dot" /> ऑटो-अपडेट: हर {stats.auto_interval_minutes ?? 60} मिनट
+          </span>
           <button onClick={aggregate} disabled={busy === "aggregate"} data-testid="admin-aggregate-button" className="inline-flex items-center gap-2 bg-[#B71C1C] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#961616] disabled:opacity-60">
             <RefreshCw className={`w-4 h-4 ${busy === "aggregate" ? "animate-spin" : ""}`} /> समाचार लाएँ
           </button>
@@ -115,14 +161,14 @@ export default function AdminDashboard() {
 
       <div className="flex gap-1 mb-4 border-b border-border">
         {[["pending", "लंबित"], ["published", "प्रकाशित"], ["rejected", "अस्वीकृत"]].map(([k, l]) => (
-          <button key={k} onClick={() => { setTab(k); setSelected(null); }} data-testid={`admin-tab-${k}`}
+          <button key={k} onClick={() => { setTab(k); setSelected(null); setSelectedIds(new Set()); }} data-testid={`admin-tab-${k}`}
             className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${tab === k ? "border-[#B71C1C] text-[#B71C1C]" : "border-transparent text-muted-foreground hover:text-foreground"}`}>{l}</button>
         ))}
       </div>
 
       <div className="flex flex-wrap gap-1.5 mb-4" data-testid="admin-local-filters">
         {LOCAL_FILTERS.map((f) => (
-          <button key={f.k || "all"} onClick={() => { setLocal(f.k); setSelected(null); }} data-testid={`admin-filter-${f.k || "all"}`}
+          <button key={f.k || "all"} onClick={() => { setLocal(f.k); setSelected(null); setSelectedIds(new Set()); }} data-testid={`admin-filter-${f.k || "all"}`}
             className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${local === f.k ? "bg-[#B71C1C] text-white border-[#B71C1C]" : "border-border text-muted-foreground hover:border-[#B71C1C] hover:text-[#B71C1C]"}`}>
             {f.label}
           </button>
@@ -131,24 +177,65 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Queue */}
-        <div className="lg:col-span-5 space-y-3 max-h-[75vh] overflow-y-auto pr-1">
+        <div className="lg:col-span-5">
+          {tab === "pending" && items.length > 0 && (
+            <div className="bg-card border border-border rounded-lg p-2.5 mb-3 flex items-center gap-2 flex-wrap" data-testid="admin-bulk-bar">
+              <label className="flex items-center gap-1.5 text-sm font-semibold cursor-pointer">
+                <input type="checkbox" checked={allSelected} onChange={toggleAll} data-testid="admin-select-all" className="w-4 h-4 accent-[#B71C1C]" />
+                सभी चुनें
+              </label>
+              <span className="text-xs text-muted-foreground">({selectedIds.size} चयनित)</span>
+              {selectedIds.size > 0 && (
+                <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+                  <button onClick={() => bulk("rewrite_publish")} disabled={!!busy || bulkProgress} data-testid="admin-bulk-rewrite-publish" className="inline-flex items-center gap-1.5 bg-[#7C3AED] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#6D28D9] disabled:opacity-60">
+                    <Sparkles className="w-3.5 h-3.5" /> AI रीराइट + प्रकाशित
+                  </button>
+                  <button onClick={() => bulk("publish")} disabled={!!busy || bulkProgress} data-testid="admin-bulk-publish" className="inline-flex items-center gap-1.5 bg-[#15803D] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#126732] disabled:opacity-60">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> प्रकाशित
+                  </button>
+                  <button onClick={() => bulk("reject")} disabled={!!busy || bulkProgress} data-testid="admin-bulk-reject" className="inline-flex items-center gap-1.5 border border-[#DC2626] text-[#DC2626] px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#DC2626]/10 disabled:opacity-60">
+                    <XCircle className="w-3.5 h-3.5" /> अस्वीकार
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {bulkProgress && (
+            <div className="bg-[#7C3AED]/10 border border-[#7C3AED]/30 rounded-lg p-3 mb-3" data-testid="admin-bulk-progress">
+              <div className="flex items-center justify-between text-xs font-semibold text-[#7C3AED] mb-1.5">
+                <span className="flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 animate-pulse" /> AI रीराइट व प्रकाशन चल रहा है...</span>
+                <span className="font-num">{bulkProgress.done}/{bulkProgress.total}</span>
+              </div>
+              <div className="h-1.5 bg-[#7C3AED]/20 rounded-full overflow-hidden">
+                <div className="h-full bg-[#7C3AED] transition-all duration-500" style={{ width: `${bulkProgress.total ? (bulkProgress.done / bulkProgress.total) * 100 : 0}%` }} />
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
           {loading ? <div className="py-16 text-center text-muted-foreground">लोड हो रहा है...</div>
             : !items.length ? <div className="py-16 text-center text-muted-foreground"><Newspaper className="w-10 h-10 mx-auto mb-2 opacity-40" />कोई समाचार नहीं। "समाचार लाएँ" दबाएँ।</div>
             : items.map((a) => (
-              <button key={a.id} onClick={() => { setSelected(a); setMarkBreaking(a.is_breaking); }} data-testid={`admin-queue-item-${a.id}`}
-                className={`w-full text-left p-3 rounded-lg border flex gap-3 transition-colors ${selected?.id === a.id ? "border-[#B71C1C] bg-[#B71C1C]/5" : "border-border bg-card hover:bg-muted/40"}`}>
-                {a.image_url && <img src={mediaUrl(a.image_url)} alt="" className="w-20 h-16 object-cover rounded-md shrink-0" />}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#D4AC0D]/15 text-[#B71C1C] dark:text-[#D4AC0D]">{CATEGORY_LABELS[a.category]}</span>
-                    {a.ai_rewritten && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#7C3AED]/15 text-[#7C3AED]">AI</span>}
-                    {a.watermarked && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#15803D]/15 text-[#15803D]">WM</span>}
+              <div key={a.id} className={`w-full p-3 rounded-lg border flex gap-2.5 transition-colors ${selected?.id === a.id ? "border-[#B71C1C] bg-[#B71C1C]/5" : "border-border bg-card hover:bg-muted/40"}`}>
+                {tab === "pending" && (
+                  <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)} data-testid={`admin-select-${a.id}`} className="mt-1 w-4 h-4 accent-[#B71C1C] shrink-0" onClick={(e) => e.stopPropagation()} />
+                )}
+                <button onClick={() => { setSelected(a); setMarkBreaking(a.is_breaking); }} data-testid={`admin-queue-item-${a.id}`} className="flex gap-3 text-left min-w-0 flex-1">
+                  {a.image_url && <img src={mediaUrl(a.image_url)} alt="" className="w-20 h-16 object-cover rounded-md shrink-0" />}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#D4AC0D]/15 text-[#B71C1C] dark:text-[#D4AC0D]">{CATEGORY_LABELS[a.category]}</span>
+                      {a.ai_rewritten && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#7C3AED]/15 text-[#7C3AED]">AI</span>}
+                      {a.watermarked && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#15803D]/15 text-[#15803D]">WM</span>}
+                    </div>
+                    <div className="font-hindi-body font-semibold text-sm line-clamp-2 text-foreground">{a.title}</div>
+                    <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(a.created_at)} • {a.source_name}</div>
                   </div>
-                  <div className="font-hindi-body font-semibold text-sm line-clamp-2 text-foreground">{a.title}</div>
-                  <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(a.created_at)} • {a.source_name}</div>
-                </div>
-              </button>
+                </button>
+              </div>
             ))}
+          </div>
         </div>
 
         {/* Workspace */}
