@@ -166,7 +166,7 @@ export default function AdminDashboard() {
                     <button onClick={() => act("rewrite", "rewrite")} disabled={busy === "rewrite"} data-testid="admin-ai-rewrite-button" className="inline-flex items-center gap-1.5 bg-[#7C3AED] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#6D28D9] disabled:opacity-60">
                       <Sparkles className={`w-4 h-4 ${busy === "rewrite" ? "animate-pulse" : ""}`} /> {busy === "rewrite" ? "पुनर्लेखन..." : "AI पुनर्लेखन"}
                     </button>
-                    <button onClick={() => act("watermark", "watermark")} disabled={busy === "watermark" || !selected.image_url} data-testid="admin-watermark-button" className="inline-flex items-center gap-1.5 border border-border px-4 py-2 rounded-lg text-sm font-semibold hover:bg-muted disabled:opacity-50">
+                    <button onClick={() => act("watermark", "watermark")} disabled={busy === "watermark" || !selected.image_url} title={!selected.image_url ? "इस समाचार में कोई छवि नहीं है" : "छवि पर वॉटरमार्क लगाएँ"} data-testid="admin-watermark-button" className="inline-flex items-center gap-1.5 border border-border px-4 py-2 rounded-lg text-sm font-semibold hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed">
                       <Stamp className={`w-4 h-4 ${busy === "watermark" ? "animate-pulse" : ""}`} /> वॉटरमार्क लगाएँ
                     </button>
                   </div>
