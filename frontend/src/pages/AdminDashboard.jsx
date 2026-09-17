@@ -28,6 +28,22 @@ export default function AdminDashboard() {
   const [busy, setBusy] = useState("");
   const [imgPrompt, setImgPrompt] = useState("");
   const [markBreaking, setMarkBreaking] = useState(false);
+  const [local, setLocal] = useState("");
+
+  const LOCAL_FILTERS = [
+    { k: "", label: "सभी" },
+    { k: "d:ghaziabad", label: "गाज़ियाबाद" },
+    { k: "d:noida", label: "नोएडा" },
+    { k: "d:greater-noida", label: "ग्रेटर नोएडा" },
+    { k: "d:hapur", label: "हापुड़" },
+    { k: "d:lucknow", label: "लखनऊ" },
+    { k: "r:up", label: "संपूर्ण यूपी" },
+    { k: "r:delhi", label: "दिल्ली" },
+    { k: "r:haryana", label: "हरियाणा" },
+    { k: "r:punjab", label: "पंजाब" },
+    { k: "r:rajasthan", label: "राजस्थान" },
+    { k: "r:uttarakhand", label: "उत्तराखंड" },
+  ];
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/admin/login");
@@ -37,19 +53,21 @@ export default function AdminDashboard() {
     api.get("/admin/stats").then((r) => setStats(r.data)).catch(() => {});
   }, []);
 
-  const load = useCallback((t) => {
+  const load = useCallback((t, lf) => {
     setLoading(true);
-    api.get(`/admin/articles?status=${t}`).then((r) => setItems(r.data)).catch(() => {}).finally(() => setLoading(false));
+    let url = `/admin/articles?status=${t}`;
+    if (lf) url += lf.startsWith("d:") ? `&district=${lf.slice(2)}` : `&region=${lf.slice(2)}`;
+    api.get(url).then((r) => setItems(r.data)).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { if (user) { load(tab); loadStats(); } }, [user, tab, load, loadStats]);
+  useEffect(() => { if (user) { load(tab, local); loadStats(); } }, [user, tab, local, load, loadStats]);
 
   const aggregate = async () => {
     setBusy("aggregate");
     try {
       const { data } = await api.post("/admin/aggregate");
       toast.success(data.message);
-      load("pending"); loadStats();
+      load("pending", local); loadStats();
     } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
     finally { setBusy(""); }
   };
@@ -61,7 +79,7 @@ export default function AdminDashboard() {
       const { data } = await api.post(`/admin/articles/${selected.id}/${path}`, body);
       if (data.id && (path === "publish" || path === "reject")) {
         toast.success(data.message);
-        setSelected(null); load(tab); loadStats();
+        setSelected(null); load(tab, local); loadStats();
       } else {
         setSelected(data);
         setItems((prev) => prev.map((it) => (it.id === data.id ? data : it)));
@@ -99,6 +117,15 @@ export default function AdminDashboard() {
         {[["pending", "लंबित"], ["published", "प्रकाशित"], ["rejected", "अस्वीकृत"]].map(([k, l]) => (
           <button key={k} onClick={() => { setTab(k); setSelected(null); }} data-testid={`admin-tab-${k}`}
             className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${tab === k ? "border-[#B71C1C] text-[#B71C1C]" : "border-transparent text-muted-foreground hover:text-foreground"}`}>{l}</button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 mb-4" data-testid="admin-local-filters">
+        {LOCAL_FILTERS.map((f) => (
+          <button key={f.k || "all"} onClick={() => { setLocal(f.k); setSelected(null); }} data-testid={`admin-filter-${f.k || "all"}`}
+            className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${local === f.k ? "bg-[#B71C1C] text-white border-[#B71C1C]" : "border-border text-muted-foreground hover:border-[#B71C1C] hover:text-[#B71C1C]"}`}>
+            {f.label}
+          </button>
         ))}
       </div>
 

@@ -202,6 +202,20 @@ RSS_SOURCES = [
     {"name": "The Hindu Health", "url": "https://www.thehindu.com/sci-tech/health/feeder/default.rss", "category": "lifestyle"},
     {"name": "News18 Lifestyle", "url": "https://www.news18.com/commonfeeds/v1/eng/rss/lifestyle.xml", "category": "lifestyle"},
     {"name": "Indian Express Education", "url": "https://indianexpress.com/section/education/feed/", "category": "lifestyle"},
+    # ---- Local / regional Hindi feeds (Amar Ujala city & state editions) ----
+    {"name": "अमर उजाला गाज़ियाबाद", "url": "https://www.amarujala.com/rss/ghaziabad.xml", "category": "national-politics", "region": "up", "district": "ghaziabad"},
+    {"name": "अमर उजाला नोएडा", "url": "https://www.amarujala.com/rss/noida.xml", "category": "national-politics", "region": "up", "district": "noida"},
+    {"name": "अमर उजाला हापुड़", "url": "https://www.amarujala.com/rss/hapur.xml", "category": "national-politics", "region": "up", "district": "hapur"},
+    {"name": "अमर उजाला लखनऊ", "url": "https://www.amarujala.com/rss/lucknow.xml", "category": "national-politics", "region": "up", "district": "lucknow"},
+    {"name": "अमर उजाला मेरठ", "url": "https://www.amarujala.com/rss/meerut.xml", "category": "national-politics", "region": "up"},
+    {"name": "अमर उजाला उत्तर प्रदेश", "url": "https://www.amarujala.com/rss/uttar-pradesh.xml", "category": "national-politics", "region": "up"},
+    {"name": "अमर उजाला दिल्ली", "url": "https://www.amarujala.com/rss/delhi.xml", "category": "national-politics", "region": "delhi"},
+    {"name": "अमर उजाला दिल्ली एनसीआर", "url": "https://www.amarujala.com/rss/delhi-ncr.xml", "category": "national-politics", "region": "delhi"},
+    {"name": "अमर उजाला हरियाणा", "url": "https://www.amarujala.com/rss/haryana.xml", "category": "national-politics", "region": "haryana"},
+    {"name": "अमर उजाला पंजाब", "url": "https://www.amarujala.com/rss/punjab.xml", "category": "national-politics", "region": "punjab"},
+    {"name": "अमर उजाला राजस्थान", "url": "https://www.amarujala.com/rss/rajasthan.xml", "category": "national-politics", "region": "rajasthan"},
+    {"name": "अमर उजाला उत्तराखंड", "url": "https://www.amarujala.com/rss/uttarakhand.xml", "category": "national-politics", "region": "uttarakhand"},
+    {"name": "अमर उजाला देहरादून", "url": "https://www.amarujala.com/rss/dehradun.xml", "category": "national-politics", "region": "uttarakhand"},
 ]
 
 REGION_KEYWORDS = {
@@ -256,7 +270,7 @@ def extract_image(entry) -> str:
     return m.group(1) if m else ""
 
 
-async def run_aggregation(per_feed: int = 4) -> int:
+async def run_aggregation(per_feed: int = 6) -> int:
     def _fetch():
         collected = []
         for src in RSS_SOURCES:
@@ -267,7 +281,9 @@ async def run_aggregation(per_feed: int = 4) -> int:
                     if not title:
                         continue
                     summary = strip_html(entry.get("summary", ""))[:1200]
-                    region, district = detect_region_district(title + " " + summary)
+                    region_kw, district_kw = detect_region_district(title + " " + summary)
+                    region = src.get("region") or region_kw
+                    district = district_kw or src.get("district")
                     text_low = (title + " " + summary).lower()
                     collected.append({
                         "title": title,
@@ -434,8 +450,17 @@ async def me(admin: dict = Depends(get_current_admin)):
 
 # ---------------------------------------------------------------- Admin routes
 @api_router.get("/admin/articles")
-async def admin_articles(status: str = "pending", limit: int = 60, admin: dict = Depends(get_current_admin)):
-    docs = await db.articles.find({"status": status}).sort("created_at", -1).limit(min(limit, 100)).to_list(min(limit, 100))
+async def admin_articles(status: str = "pending", region: Optional[str] = None,
+                         district: Optional[str] = None, category: Optional[str] = None,
+                         limit: int = 80, admin: dict = Depends(get_current_admin)):
+    query = {"status": status}
+    if region:
+        query["region"] = region
+    if district:
+        query["district"] = district
+    if category:
+        query["category"] = category
+    docs = await db.articles.find(query).sort("created_at", -1).limit(min(limit, 120)).to_list(min(limit, 120))
     return [_serialize(d) for d in docs]
 
 
